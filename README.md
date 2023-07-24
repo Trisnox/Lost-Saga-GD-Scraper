@@ -1,4 +1,5 @@
-![firefox_24-07-2023_23-54-39](https://github.com/Trisnox/Lost-Saga-GD-Scraper/assets/66292369/085fb0e0-3d0c-4dcc-8533-580370c80b83)
+
+![firefox_24-07-2023_23-54-39](https://github.com/Trisnox/Lost-Saga-GD-Scraper/assets/66292369/43d90b76-6274-467a-9153-ce39edfbae59)
 
 # Lost-Saga-GD-Scraper
 A tool to scrape and download Lost Saga gear design. It directly scrape from various Lost Saga server, and then later converted into jpg using python.
