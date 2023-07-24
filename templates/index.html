@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gear Design</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <div class="top-left">
+        <span>Lost Saga Gear Design Scraper</span>
+    </div>
+    <div class="top-right">
+        <select id="server-dropdown" onchange="dropdown_change()">
+            {% for value, name in options.items() %}
+            <option value="{{ value }}"
+            {% if server == value or server.startswith("http") %} selected {% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" id="custom-input" placeholder="Custom url">
+        <button id="custom-button">Submit</button>
+    </div>
+    <div class="image-block">
+        {% for index in keys %}
+            {% if index == 'invalid' %}
+            <span>Server invalid</span>
+            {% else %}
+            <img src="{{ url_for('gear_design_image', image_id=index) }}", alt="{{ index }}.jpg">
+            {% endif %}
+        {% endfor %}
+    </div>
+    <div class="discord-link">
+        <a target="_blank" rel="noopener noreferrer" href="https://discord.gg/GJ2P6u4edG">Discord Server</a>
+    </div>
+    <div class="bottom-center">
+        <button id="first-page">«</button>
+        <button id="prev-page">‹</button>
+        <span id="current-page">{{ current_page }}</span>
+        <button id="next-page">›</button>
+        <input type="number" id="custom-page" placeholder="Jump to">
+        <button id="go-to-custom">Go</button>
+    </div>
+    <script>
+        function dropdown_change(){
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
+
+            if (selected_option !== 'custom'){
+                window.location.href = '/?server='+selected_option;
+            }
+        }
+        // After some thought, I decided to just make separate the parameters, after all, I'm using session to keep track of variables
+        // I mean, I could do that, but not worth my time because I need to check the jump input, which leads to even more nested ifs
+        // Don't forget that I need to copy the func into the other button, I'll just do that whenever I feel like it
+        document.getElementById('go-to-custom').addEventListener('click', function(){
+            const jump_number = Number(document.getElementById('custom-page').value);
+
+            if (jump_number !== '') {
+                if (Number.isInteger(jump_number)) {
+                    window.location.href = '/?index='+jump_number;
+                } else {
+                    alert('Jump input must be a number');
+                }
+            } else {
+                alert('Jump input cannot be empty');
+            }
+        });
+
+        document.getElementById('first-page').addEventListener('click', function(){
+            let current_page = document.getElementById('current-page').innerText;
+            current_page = Number(current_page)
+
+            if (current_page == 1){
+                alert('You are at first page!');
+            } else {
+                window.location.href = '/?index=1';
+            }
+        });
+
+        document.getElementById('prev-page').addEventListener('click', function(){
+            let current_page = document.getElementById('current-page').innerText;
+            current_page = Number(current_page)
+
+            if (current_page > 1){
+                current_page--;
+                window.location.href = '/?index=' + current_page;
+            } else {
+                alert('You are at first page!');
+            }
+        });
+
+        document.getElementById('next-page').addEventListener('click', function(){
+            let current_page = document.getElementById('current-page').innerText;
+            current_page = Number(current_page)
+            current_page++;
+            window.location.href = '/?index=' + current_page;
+        });
+
+        document.getElementById('custom-button').addEventListener('click', function() {
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
+            const custom_input = document.getElementById('custom-input').value;
+
+            if (selected_option !== 'custom') {
+                window.location.href = '/?server='+selected_option;
+            } else if (selected_option === 'custom') {
+                if (custom_input.trim() !== '') {
+                    window.location.href = '/?server='+encodeURIComponent(custom_input);
+                } else {
+                    alert('URL input cannot be empty for custom server');
+                }
+            } else {
+                alert('Option not selected')
+            }
+        });
+    </script>
+</body>
+</html>

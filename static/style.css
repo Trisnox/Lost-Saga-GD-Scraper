@@ -1,0 +1,88 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    background-color: #010409;
+}
+
+.top-left {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+
+.top-right {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.image-block {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    margin: 100px auto;
+}
+
+.image-block img {
+    max-width: 250px;
+    max-height: 250px;
+    margin: 5px;
+}
+
+.bottom-center {
+    margin: 20px auto;
+    text-align: center;
+}
+
+.discord-link {
+    margin: 20px auto;
+    text-align: right;
+}
+
+#custom-page {
+    width: 50px;
+    text-align: center;
+}
+
+button {
+    border: none;
+    background-color: #30363d;
+    color: #d1d1d1;
+    border-radius: 5%;
+    border-color: gray;
+}
+
+button:hover {
+    background-color: #4f5964;
+}
+
+button:active {
+    background-color: rgb(24, 29, 34)
+}
+
+span {
+    color: white;
+}
+
+a {
+    color: #1371f7;
+}
+
+input {
+    background-color: #30363d;
+    box-shadow: none;
+    border: 0;
+    color: #ececec;
+    box-sizing: border-box;
+}
+
+select {
+    background-color: #30363d;
+    color: #ececec;
+    border: none;
+}
