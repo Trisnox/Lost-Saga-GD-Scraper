@@ -34,13 +34,21 @@ body {
     margin: 5px;
 }
 
-.bottom-center {
+.bottom-block {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
     margin: 20px auto;
-    text-align: center;
 }
 
-.discord-link {
-    margin: 20px auto;
+.bottom-block .version {
+    text-align: left;
+}
+
+.bottom-block .bottom-center {
+    text-align: center;
+}
+.bottom-block .discord-link {
     text-align: right;
 }
 

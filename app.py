@@ -206,6 +206,8 @@ def index():
     
     session['server'] = server
     session['index'] = index
+    session['version_check'] = False
+    session['latest_version_check'] = None
 
     options = {
         "lso": "Lost Saga Origin",
@@ -215,6 +217,19 @@ def index():
         "lsa":"Lost Saga Aslantia",
         "custom": "Custom Server"
     }
+
+    version = "v1.1"
+    if not session['version_check']:
+        session['version_check'] = True
+
+        try:
+            response = requests.get("https://api.github.com/repos/Trisnox/Lost-Saga-GD-Scraper/releases/latest").json()
+            if version != response['tag_name']:
+                session['latest_version_check'] = True
+            else:
+                session['latest_version_check'] = False
+        except requests.ConnectionError:
+            pass
 
     if not session.get('scraper', None):
         session['scraper'] = GD_Scraper(save_image = True, write_invalid = True)
@@ -228,7 +243,7 @@ def index():
     if session['scraper'].is_custom:
         server = 'custom'
 
-    return render_template('index.html', keys=res.keys(), current_page=session['index'], server=server, options=options)
+    return render_template('index.html', keys=res.keys(), current_page=session['index'], server=server, options=options, version=version, latest=session['latest_version_check'])
 
 @app.route('/gear/<string:image_id>')
 def gear_design_image(image_id):

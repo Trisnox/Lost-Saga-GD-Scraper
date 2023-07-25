@@ -29,35 +29,47 @@
             {% endif %}
         {% endfor %}
     </div>
-    <div class="discord-link">
-        <a target="_blank" rel="noopener noreferrer" href="https://discord.gg/GJ2P6u4edG">Discord Server</a>
-    </div>
-    <div class="bottom-center">
-        <button id="first-page">«</button>
-        <button id="prev-page">‹</button>
-        <span id="current-page">{{ current_page }}</span>
-        <button id="next-page">›</button>
-        <input type="number" id="custom-page" placeholder="Jump to">
-        <button id="go-to-custom">Go</button>
+    <div class="bottom-block">
+        <div class="version">
+            {% if latest is none %}
+            <span id="Version">{{ version }} (Cannot check latest version, check your connection)</span>
+            {% elif latest %}
+            <a target="_blank" rel="noopener noreferrer" href="https://github.com/Trisnox/Lost-Saga-GD-Scraper/releases/latest">{{ version }} (Update available)</a>
+            {% else %}
+            <span id="Version">{{ version }} (Latest version)</span>
+            {% endif %}
+        </div>
+        <div class="bottom-center">
+            <button id="first-page">«</button>
+            <button id="prev-page">‹</button>
+            <span id="current-page">{{ current_page }}</span>
+            <button id="next-page">›</button>
+            <input type="number" id="custom-page" placeholder="Jump to">
+            <button id="go-to-custom">Go</button>
+        </div>
+        <div class="discord-link">
+            <a target="_blank" rel="noopener noreferrer" href="https://discord.gg/GJ2P6u4edG">Discord Server</a>
+        </div>
     </div>
     <script>
         function dropdown_change(){
             const dropdown = document.getElementById('server-dropdown');
             const selected_option = dropdown.options[dropdown.selectedIndex].value;
+            const current_page = document.getElementById('current-page').innerText;
 
             if (selected_option !== 'custom'){
-                window.location.href = '/?server='+selected_option;
+                window.location.href = '/?server='+selected_option+'&index='+current_page;
             }
         }
-        // After some thought, I decided to just make separate the parameters, after all, I'm using session to keep track of variables
-        // I mean, I could do that, but not worth my time because I need to check the jump input, which leads to even more nested ifs
-        // Don't forget that I need to copy the func into the other button, I'll just do that whenever I feel like it
+        
         document.getElementById('go-to-custom').addEventListener('click', function(){
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
             const jump_number = Number(document.getElementById('custom-page').value);
 
             if (jump_number !== '') {
                 if (Number.isInteger(jump_number)) {
-                    window.location.href = '/?index='+jump_number;
+                    window.location.href = '/?server='+selected_option+'&index='+jump_number;
                 } else {
                     alert('Jump input must be a number');
                 }
@@ -67,45 +79,53 @@
         });
 
         document.getElementById('first-page').addEventListener('click', function(){
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
             let current_page = document.getElementById('current-page').innerText;
             current_page = Number(current_page)
 
             if (current_page == 1){
                 alert('You are at first page!');
             } else {
-                window.location.href = '/?index=1';
+                window.location.href = '/?server='+selected_option+'&index=1';
             }
         });
 
         document.getElementById('prev-page').addEventListener('click', function(){
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
             let current_page = document.getElementById('current-page').innerText;
             current_page = Number(current_page)
 
             if (current_page > 1){
                 current_page--;
-                window.location.href = '/?index=' + current_page;
+                window.location.href = '/?server='+selected_option+'&index='+current_page;
             } else {
                 alert('You are at first page!');
             }
         });
 
         document.getElementById('next-page').addEventListener('click', function(){
+            const dropdown = document.getElementById('server-dropdown');
+            const selected_option = dropdown.options[dropdown.selectedIndex].value;
             let current_page = document.getElementById('current-page').innerText;
+
             current_page = Number(current_page)
             current_page++;
-            window.location.href = '/?index=' + current_page;
+            window.location.href = '/?server='+selected_option+'&index='+current_page;
         });
 
         document.getElementById('custom-button').addEventListener('click', function() {
             const dropdown = document.getElementById('server-dropdown');
             const selected_option = dropdown.options[dropdown.selectedIndex].value;
             const custom_input = document.getElementById('custom-input').value;
+            const current_page = document.getElementById('current-page').innerText;
 
             if (selected_option !== 'custom') {
-                window.location.href = '/?server='+selected_option;
+                alert("This button and input box is only used if you're using custom server option");
             } else if (selected_option === 'custom') {
                 if (custom_input.trim() !== '') {
-                    window.location.href = '/?server='+encodeURIComponent(custom_input);
+                    window.location.href = '/?server='+encodeURIComponent(custom_input)+'&index='+current_page;
                 } else {
                     alert('URL input cannot be empty for custom server');
                 }
