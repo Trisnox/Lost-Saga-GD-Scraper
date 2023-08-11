@@ -42,8 +42,6 @@ class GD_Scraper():
             # Appearantly the texture had transparency? Besides the game only allows you to upload jpg so...
             img = img.convert('RGB') 
             if self.save_image:
-                if not os.path.exists('./texture/'):
-                    os.makedirs('./texture/')
                 img.save('./texture/' + filename + '.jpg')
 
             texture_image = io.BytesIO()
@@ -149,6 +147,10 @@ class GD_Scraper():
                 if x is not None:
                     gear_designs_bytes = gear_designs_bytes | x
         
+        if self.save_image:
+            if not os.path.exists('./texture/'):
+                os.makedirs('./texture/')
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(gear_designs_bytes)) as executor:
             result = list(executor.map(process_bytes, gear_designs_bytes.keys(), gear_designs_bytes.values()))
             for x in result:
