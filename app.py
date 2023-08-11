@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import concurrent.futures
 import io
 import os
 import secrets
@@ -22,24 +23,7 @@ class GD_Scraper():
             'lsa': 'http://178.128.23.239:5695/gear/'
             }
         self.save_image = kwargs.get('save_image', False)
-        self.write_invalid = kwargs.get('write_invalid', False)
-        self.invalid_files = {
-            'lso': [],
-            'lskr': [],
-            'lscn': [],
-            'lse': [],
-            'lsa': [],
-            'custom': []
-        }
-        self.temp_invalid = []
         self.is_custom = False
-
-        for x in self.invalid_files.keys():
-            if os.path.isfile(f'invalid_{x}.txt'):
-                with open(f'invalid_{x}.txt') as f:
-                    invalid = f.readlines()
-                    invalid = [_.strip() for _ in invalid if _.strip()]
-                    self.invalid_files[x] = invalid
 
     # https://github.com/Trisnox/lsc2dds-py
     def convert_lsc(self, array):
@@ -86,29 +70,6 @@ class GD_Scraper():
         
         return images
 
-    def invalid(self, id):
-        id = str(id)
-        if self.is_custom:
-            server = 'custom'
-        else:
-            server = session['server']
-        if not id in self.invalid_files[server]:
-            self.invalid_files[server] = [_ for _ in self.invalid_files[server] + [id]]
-            if self.write_invalid:
-                self.temp_invalid = [_ for _ in self.temp_invalid + [id]]
-    
-    def invalid_write(self):
-        if self.write_invalid:
-            if self.is_custom:
-                server = 'custom'
-            else:
-                server = session['server']
-            with open(f'invalid_{server}.txt', 'a+') as f:
-                text = '\n'
-                text += '\n'.join(self.temp_invalid)
-                if not text == '\n':
-                    f.write(text)
-
     # My plan is to load 100 gear design per page, not images since some gear requires multiple texture
     # If single item returns 404, then we'll just skip, don't append and just simply leave a blank space
     def load(self, server: str = 'lso', offset: int = 1):
@@ -118,14 +79,35 @@ class GD_Scraper():
                 return False
             return True
 
-        self.temp_invalid = []
+        def process(key):
+            gear_designs_bytes = {}
+            for url, filename in key.items():
+                res = requests.get(url)
+                if res.status_code == 200:
+                    image_bytes = list(res.content)
+                    gear_designs_bytes = gear_designs_bytes | {filename: image_bytes}
+                else:
+                    if filename[-1] == '1':
+                        return None
+            return gear_designs_bytes
+
+        def process_bytes(filename, image_bytes):
+            image_dds = self.convert_lsc(image_bytes)
+            try:
+                image_png = self.convert_dds(image_dds, filename)
+                return {filename: image_png}
+            except UnidentifiedImageError:
+                return None
+
         self.is_custom = False
+        gear_designs_bytes = {}
         gear_designs = {}
 
         counter = 1 + (offset - 1) * 25
         end = counter + 24
         custom_url = ''
         server = session['server']
+        urls = []
 
         url = self.urls.get(server, None)
         if not url and server.startswith('http'):
@@ -147,36 +129,32 @@ class GD_Scraper():
             self.is_custom = True
 
         while counter <= end:
-            if self.is_custom:
-                if str(counter) in self.invalid_files['custom']:
-                    counter += 1
-                    continue
-            else:
-                if str(counter) in self.invalid_files[server]:
-                    counter += 1
-                    continue
-
-            for x in range(3):
-                x = str(x + 1)
-                filename = str(counter) + '_' + x
-
-                res = requests.get(url + filename + '.lsc')
-                if res.status_code == 200:
-                    image_bytes = list(res.content)
-                    image_dds = self.convert_lsc(image_bytes)
-                    try:
-                        image_png = self.convert_dds(image_dds, filename)
-                    except UnidentifiedImageError:
-                        return {'invalid': 404}
-                    gear_designs[filename] = image_png
-                else:
-                    if x == '1':
-                        self.invalid(counter)
-                        break
+            num = str(counter)
+            req_urls = [{
+                url + num + '_1.lsc': num +'_1',
+                url + num + '_2.lsc': num +'_2',
+                url + num + '_3.lsc': num +'_3'
+            }]
+            urls = [_ for _ in urls + req_urls]
             
             counter += 1
+
+        # turns out slower because it waits for the url first, then convert
+        # what if... we convert it on the go?
+        # idk if this slower, because I need a constant fast internet and processor to do so
+        # but anyways, now it's at least 3x faster
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(urls)*2) as executor:
+            result = list(executor.map(process, urls))
+            for x in result:
+                if x is not None:
+                    gear_designs_bytes = gear_designs_bytes | x
         
-        self.invalid_write()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(gear_designs_bytes)) as executor:
+            result = list(executor.map(process_bytes, gear_designs_bytes.keys(), gear_designs_bytes.values()))
+            for x in result:
+                if x is not None:
+                    gear_designs = gear_designs | x
+
         return gear_designs
 
 if getattr(sys, 'frozen', False):
@@ -218,7 +196,7 @@ def index():
         "custom": "Custom Server"
     }
 
-    version = "v1.1"
+    version = "v2.0"
     if not session['version_check']:
         session['version_check'] = True
 
@@ -232,7 +210,7 @@ def index():
             pass
 
     if not session.get('scraper', None):
-        session['scraper'] = GD_Scraper(save_image = True, write_invalid = True)
+        session['scraper'] = GD_Scraper(save_image = True)
     
     if not session.get('gear_designs', None):
         session['gear_designs'] = {}
