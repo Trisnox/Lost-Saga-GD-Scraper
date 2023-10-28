@@ -3,7 +3,9 @@
 import concurrent.futures
 import io
 import os
+import pathlib
 import secrets
+import shutil
 import sys
 
 import requests
@@ -17,13 +19,14 @@ class GD_Scraper():
     def __init__(self, *args, **kwargs):
         self.urls = {
             'lso': 'http://43.129.51.47:9000/gear/',
-            'lskr': 'https://lostkr-cdn-image.valofe.com/gear/',
+            'lskr': 'http://lostkr-cdn-image.valofe.com/gear/',
             'lscn': 'http://106.14.0.130:9000/gear/',
             'lse': 'http://203.27.106.27:9000/gear/',
-            'lsa': 'http://178.128.23.239:5695/gear/'
+            'lsa': 'http://patch.lostsagacdn.com:10095/gear/'
             }
         self.save_image = kwargs.get('save_image', False)
         self.is_custom = False
+        self.server = ''
 
     # https://github.com/Trisnox/lsc2dds-py
     def convert_lsc(self, array):
@@ -41,8 +44,14 @@ class GD_Scraper():
         with Image.open(io.BytesIO(bytearray(image))) as img:
             # Appearantly the texture had transparency? Besides the game only allows you to upload jpg so...
             img = img.convert('RGB') 
+
             if self.save_image:
-                img.save('./texture/' + filename + '.jpg')
+                if self.is_custom:
+                    server_name = 'custom'
+                else:
+                    server_name = self.server
+
+                img.save(f'./texture_{server_name}/' + filename + '.jpg')
 
             texture_image = io.BytesIO()
             img.save(texture_image, format='jpeg')
@@ -80,7 +89,11 @@ class GD_Scraper():
         def process(key):
             gear_designs_bytes = {}
             for url, filename in key.items():
-                res = requests.get(url)
+                try:
+                    res = requests.get(url)
+                except requests.exceptions.ConnectTimeout:
+                    continue
+
                 if res.status_code == 200:
                     image_bytes = list(res.content)
                     gear_designs_bytes = gear_designs_bytes | {filename: image_bytes}
@@ -96,6 +109,15 @@ class GD_Scraper():
                 return {filename: image_png}
             except UnidentifiedImageError:
                 return None
+
+        self.server = server
+
+        cache = session['cache'].get(server, [])
+        if offset in cache:
+            return {}, True
+        
+        cache = [_ for _ in cache + [offset]]
+        session['cache'][server] = cache
 
         self.is_custom = False
         gear_designs_bytes = {}
@@ -123,7 +145,7 @@ class GD_Scraper():
             checks = check_server(custom_url)
 
             if not checks:
-                return {'invalid': 404}
+                return {'invalid': 404}, False
             self.is_custom = True
 
         while counter <= end:
@@ -148,8 +170,16 @@ class GD_Scraper():
                     gear_designs_bytes = gear_designs_bytes | x
         
         if self.save_image:
-            if not os.path.exists('./texture/'):
-                os.makedirs('./texture/')
+            if self.is_custom:
+                server_name = 'custom'
+            else:
+                server_name = server
+
+            if not os.path.exists(f'./texture_{server_name}/'):
+                os.makedirs(f'./texture_{server_name}/')
+        
+        if len(gear_designs_bytes) == 0:
+            return {}, False
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(gear_designs_bytes)) as executor:
             result = list(executor.map(process_bytes, gear_designs_bytes.keys(), gear_designs_bytes.values()))
@@ -157,7 +187,13 @@ class GD_Scraper():
                 if x is not None:
                     gear_designs = gear_designs | x
 
-        return gear_designs
+        return gear_designs, False
+
+# Temporal solution until I figure out how to detect older version of session and then remove and restart when it does
+# Why? Because the class variables are basically static, which cause it to act as if this code was using the older version when it does not
+dirpath = pathlib.Path('flask_session')
+if dirpath.exists() and dirpath.is_dir():
+    shutil.rmtree(dirpath)
 
 if getattr(sys, 'frozen', False):
     template_folder = os.path.join(sys._MEIPASS, 'templates')
@@ -183,11 +219,21 @@ def index():
         server = 'lso'
     if index is None:
         index = '1'
-    
+
     session['server'] = server
     session['index'] = index
-    session['version_check'] = False
-    session['latest_version_check'] = None
+
+    if not session.get('version_check'):
+        session['version_check'] = False
+
+    if not session.get('cache'):
+        session['cache'] = {
+            'lso': [],
+            'lskr': [],
+            'lscn': [],
+            'lse': [],
+            'lsa': []
+        } # custom will not be made since it's dynamic. If I were to, I'd use the self.is_custom variable to check
 
     options = {
         "lso": "Lost Saga Origin",
@@ -198,8 +244,8 @@ def index():
         "custom": "Custom Server"
     }
 
-    version = "v2.0"
-    if not session['version_check']:
+    version = "v2.1"
+    if not session.get('version_check'):
         session['version_check'] = True
 
         try:
@@ -215,20 +261,30 @@ def index():
         session['scraper'] = GD_Scraper(save_image = True)
     
     if not session.get('gear_designs', None):
-        session['gear_designs'] = {}
+        session['gear_designs'] = {
+            'lso': {},
+            'lskr': {},
+            'lscn': {},
+            'lse': {},
+            'lsa': {},
+            'custom': {}
+        }
+        # session['gear_designs']['merged'] = {}
 
-    res = session['scraper'].load(server=server, offset=int(index))
-    session['gear_designs'] = session['gear_designs'] | res
+    res, cached = session['scraper'].load(server=server, offset=int(index))
+    if not cached:
+        session['gear_designs'][server][index] = res
+        # session['gear_designs']['merged'] = session['gear_designs']['merged'] | res
 
     if session['scraper'].is_custom:
         server = 'custom'
 
-    return render_template('index.html', keys=res.keys(), current_page=session['index'], server=server, options=options, version=version, latest=session['latest_version_check'])
+    return render_template('index.html', keys=session['gear_designs'][server][index].keys(), current_page=session['index'], server=server, options=options, version=version, latest=session['latest_version_check'])
 
 @app.route('/gear/<string:image_id>')
 def gear_design_image(image_id):
-    if session['gear_designs'].get(image_id, None):
-        image = session['gear_designs'][image_id]
+    if session['gear_designs'][session['server']][session['index']].get(image_id, None):
+        image = session['gear_designs'][session['server']][session['index']][image_id]
         image.seek(0)
 
         return send_file(image, mimetype='image/jpeg')
