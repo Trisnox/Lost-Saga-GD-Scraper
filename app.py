@@ -22,7 +22,8 @@ class GD_Scraper():
             'lskr': 'http://lostkr-cdn-image.valofe.com/gear/',
             'lscn': 'http://106.14.0.130:9000/gear/',
             'lse': 'http://203.27.106.27:9000/gear/',
-            'lsa': 'http://patch.lostsagacdn.com:10095/gear/'
+            'lsa': 'http://patch.lostsagacdn.com:10095/gear/',
+            'lsanchor': 'http://45.77.254.31:8999/gear/'
             }
         self.save_image = kwargs.get('save_image', False)
         self.is_custom = False
@@ -232,7 +233,8 @@ def index():
             'lskr': [],
             'lscn': [],
             'lse': [],
-            'lsa': []
+            'lsa': [],
+            'lsanchor': []
         } # custom will not be made since it's dynamic. If I were to, I'd use the self.is_custom variable to check
 
     options = {
@@ -241,10 +243,11 @@ def index():
         "lscn": "Lost Saga China",
         "lse": "Lost Saga Exotic",
         "lsa":"Lost Saga Aslantia",
+        "lsanchor":"Lost Saga Anchor",
         "custom": "Custom Server"
     }
 
-    version = "v2.1"
+    version = "v2.1.1"
     if not session.get('version_check'):
         session['version_check'] = True
 
@@ -267,6 +270,7 @@ def index():
             'lscn': {},
             'lse': {},
             'lsa': {},
+            'lsanchor': {},
             'custom': {}
         }
         # session['gear_designs']['merged'] = {}
