@@ -14,16 +14,19 @@ from PIL import Image, UnidentifiedImageError
 
 from flask_session import Session
 
+# from hanging_threads import start_monitoring
+# start_monitoring(seconds_frozen=10, test_interval=100)
 
+# I would really advise to rewrite from scratch due to this script was meant for browser/online website usage, not local usage
+# Since replit no longer supports hosting website applications, I no longer need to care such thing, just focus on local experience instead
 class GD_Scraper():
     def __init__(self, *args, **kwargs):
         self.urls = {
             'lso': 'http://43.129.51.47:9000/gear/',
             'lskr': 'http://lostkr-cdn-image.valofe.com/gear/',
-            'lscn': 'http://106.14.0.130:9000/gear/',
-            'lse': 'http://203.27.106.27:9000/gear/',
-            'lsa': 'http://patch.lostsagacdn.com:10095/gear/',
-            'lsanchor': 'http://45.77.254.31:8999/gear/'
+            'lser': 'http://203.27.106.186:9000/gear/',
+            'elaim': 'http://gd.lostsaga.moe/gear/',
+            'lunar': 'http://160.202.167.53:82/upFiles/gear/',
             }
         self.save_image = kwargs.get('save_image', False)
         self.is_custom = False
@@ -82,7 +85,7 @@ class GD_Scraper():
     # If single item returns 404, then we'll just skip, don't append and just simply leave a blank space
     def load(self, server: str = 'lso', offset: int = 1):
         def check_server(url):
-            res = requests.get(url + '1_1.lsc')
+            res = requests.get(url + '1_1.lsc', stream=True)
             if res.status_code == 404:
                 return False
             return True
@@ -91,7 +94,7 @@ class GD_Scraper():
             gear_designs_bytes = {}
             for url, filename in key.items():
                 try:
-                    res = requests.get(url)
+                    res = requests.get(url, stream=True)
                 except requests.exceptions.ConnectTimeout:
                     continue
 
@@ -101,7 +104,7 @@ class GD_Scraper():
                 else:
                     if filename[-1] == '1':
                         return None
-            return gear_designs_bytes
+            return gear_designs_bytes if gear_designs_bytes else None # making sure it returns the completed data or none at all
 
         def process_bytes(filename, image_bytes):
             image_dds = self.convert_lsc(image_bytes)
@@ -231,23 +234,21 @@ def index():
         session['cache'] = {
             'lso': [],
             'lskr': [],
-            'lscn': [],
-            'lse': [],
-            'lsa': [],
-            'lsanchor': []
+            'lser': [],
+            'elaim': [],
+            'lunar':[]
         } # custom will not be made since it's dynamic. If I were to, I'd use the self.is_custom variable to check
 
     options = {
         "lso": "Lost Saga Origin",
         "lskr": "Lost Saga Korea",
-        "lscn": "Lost Saga China",
-        "lse": "Lost Saga Exotic",
-        "lsa":"Lost Saga Aslantia",
-        "lsanchor":"Lost Saga Anchor",
+        "lser": "Lost Saga Exotic Reborn",
+        "elaim": "Lost Saga Elaim",
+        "lunar": "Lost Saga Lunar",
         "custom": "Custom Server"
     }
 
-    version = "v2.1.1"
+    version = "v2.1.2"
     if not session.get('version_check'):
         session['version_check'] = True
 
@@ -267,23 +268,33 @@ def index():
         session['gear_designs'] = {
             'lso': {},
             'lskr': {},
-            'lscn': {},
-            'lse': {},
-            'lsa': {},
-            'lsanchor': {},
+            'lser': {},
+            'elaim': {},
+            'lunar': {},
             'custom': {}
         }
         # session['gear_designs']['merged'] = {}
 
     res, cached = session['scraper'].load(server=server, offset=int(index))
     if not cached:
-        session['gear_designs'][server][index] = res
+        # Regretfully, I am very sorry, because I could not figure out the solution, this just simply catch the exception
+        # This error, IncompleteRead, is mostly likely caused due to connection issues, which mostly occured for faraway
+        # server like korea, and china (that is now shut down)
+        # After all, since the server is located at korea, so expect some latency
+        try:
+            session['gear_designs'][server][index] = res
+        except requests.exceptions.ChunkedEncodingError as e:
+            print('An error occured while processing index: ', index)
+            print(e)
         # session['gear_designs']['merged'] = session['gear_designs']['merged'] | res
 
     if session['scraper'].is_custom:
         server = 'custom'
 
-    return render_template('index.html', keys=session['gear_designs'][server][index].keys(), current_page=session['index'], server=server, options=options, version=version, latest=session['latest_version_check'])
+    # ???
+    # I thought I already explicitly set this variable, yet it sometimes told me that the value is not yet and causing KeyError
+    version_check = session.get('latest_version_check', None)
+    return render_template('index.html', keys=session['gear_designs'][server][index].keys(), current_page=session['index'], server=server, options=options, version=version, latest=version_check)
 
 @app.route('/gear/<string:image_id>')
 def gear_design_image(image_id):
